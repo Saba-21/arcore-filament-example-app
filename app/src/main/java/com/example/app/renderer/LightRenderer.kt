@@ -3,8 +3,10 @@ package com.example.app.renderer
 import com.example.app.filament.Filament
 import com.example.app.V3
 import com.example.app.div
+import com.example.app.getEnvironmentalHdrSphericalHarmonics
 import com.google.android.filament.EntityInstance
 import com.google.android.filament.EntityManager
+import com.google.android.filament.IndirectLight
 import com.google.android.filament.LightManager
 import com.google.ar.core.Frame
 import com.google.ar.core.LightEstimate
@@ -33,16 +35,15 @@ class LightRenderer(private val filament: Filament) {
             return
         }
 
-        // Crashes Filament 1.9.*
-//        filament.scene.indirectLight =
-//            IndirectLight
-//                .Builder()
-//                .irradiance(
-//                    3,
-//                    frame.lightEstimate.environmentalHdrAmbientSphericalHarmonics
-//                        .let { getEnvironmentalHdrSphericalHarmonics(it) }
-//                )
-//                .build(filament.engine)
+        // setting irradiance crashes
+        filament.scene.indirectLight = IndirectLight
+            .Builder()
+            .irradiance(
+                3,
+                frame.lightEstimate.environmentalHdrAmbientSphericalHarmonics
+                    .let { getEnvironmentalHdrSphericalHarmonics(it) }
+            )
+            .build(filament.engine)
 
         with(frame.lightEstimate.environmentalHdrMainLightDirection) {
             filament.engine.lightManager.setDirection(
