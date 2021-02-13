@@ -15,7 +15,7 @@ import com.google.android.filament.gltfio.ResourceLoader
 
 class Filament(context: Context, val surfaceView: SurfaceView) {
     var timestamp: Long = 0L
-    private val eglContext: EGLContext = createEglContext().orNull()!!
+    private val eglContext: EGLContext = createEglContext()
     val engine: Engine = Engine.create(eglContext)
     val renderer: Renderer = engine.createRenderer()
     val scene: Scene = engine.createScene()

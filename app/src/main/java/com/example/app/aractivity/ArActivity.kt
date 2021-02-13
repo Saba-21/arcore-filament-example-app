@@ -14,7 +14,6 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.isVisible
 import com.example.app.*
 import com.example.app.arcore.ArCore
-import com.example.app.databinding.ExampleActivityBinding
 import com.example.app.filament.Filament
 import com.example.app.gesture.*
 import com.example.app.toRadians
@@ -61,13 +60,17 @@ class ArActivity : AppCompatActivity() {
 
     private val createScope = CoroutineScope(Dispatchers.Main)
     private lateinit var startScope: CoroutineScope
-    private lateinit var binding: ExampleActivityBinding
+
+    private lateinit var surfaceView: SurfaceView
+    private lateinit var handMotionContainer:View
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ExampleActivityBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setContentView(R.layout.example_activity)
+        surfaceView = findViewById(R.id.surface_view)
+        handMotionContainer = findViewById(R.id.hand_motion_container)
+
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -142,7 +145,7 @@ class ArActivity : AppCompatActivity() {
             object : DragGestureRecognizer.OnGestureStartedListener {
                 override fun onGestureStarted(gesture: DragGesture) {
                     Pair(
-                        binding.surfaceView.toViewRect(),
+                        surfaceView.toViewRect(),
                         TouchEvent.Move(gesture.position.x, gesture.position.y),
                     )
                         .let { dragEvents.tryEmit(it) }
@@ -151,7 +154,7 @@ class ArActivity : AppCompatActivity() {
                         object : DragGesture.OnGestureEventListener {
                             override fun onFinished(gesture: DragGesture) {
                                 Pair(
-                                    binding.surfaceView.toViewRect(),
+                                    surfaceView.toViewRect(),
                                     TouchEvent.Stop(gesture.position.x, gesture.position.y),
                                 )
                                     .let { dragEvents.tryEmit(it) }
@@ -159,7 +162,7 @@ class ArActivity : AppCompatActivity() {
 
                             override fun onUpdated(gesture: DragGesture) {
                                 Pair(
-                                    binding.surfaceView.toViewRect(),
+                                    surfaceView.toViewRect(),
                                     TouchEvent.Move(gesture.position.x, gesture.position.y),
                                 )
                                     .let { dragEvents.tryEmit(it) }
@@ -171,13 +174,13 @@ class ArActivity : AppCompatActivity() {
         )
 
         // tap and gesture events
-        binding.surfaceView.setOnTouchListener { _, motionEvent ->
+        surfaceView.setOnTouchListener { _, motionEvent ->
             if (motionEvent.action == MotionEvent.ACTION_UP &&
                 (motionEvent.eventTime - motionEvent.downTime) <
                 resources.getInteger(R.integer.tap_event_milliseconds)
             ) {
                 Pair(
-                    binding.surfaceView.toViewRect(),
+                    surfaceView.toViewRect(),
                     TouchEvent.Stop(motionEvent.x, motionEvent.y),
                 )
                     .let { dragEvents.tryEmit(it) }
@@ -316,10 +319,10 @@ class ArActivity : AppCompatActivity() {
         }
 
         // TODO: eliminate nesting of finally blocks
-        val filament = Filament(this@ArActivity, binding.surfaceView)
+        val filament = Filament(this@ArActivity, surfaceView)
 
         try {
-            val arCore = ArCore(this@ArActivity, filament, binding.surfaceView)
+            val arCore = ArCore(this@ArActivity, filament, surfaceView)
 
             try {
                 val lightRenderer = LightRenderer(this@ArActivity, arCore.filament)
@@ -404,19 +407,19 @@ class ArActivity : AppCompatActivity() {
                         )
                         .let { delay(it) }
 
-                    binding.handMotionContainer.isVisible = true
+                    handMotionContainer.isVisible = true
                 }
 
                 launch(coroutineContext) {
                     arTrackingEvents.first()
                     job.cancel()
-                    binding.handMotionContainer.isVisible = false
+                    handMotionContainer.isVisible = false
                 }
             }
 
             awaitCancellation()
         } finally {
-            binding.handMotionContainer.isVisible = false
+            handMotionContainer.isVisible = false
             frameCallback.stop()
             arCore.session.pause()
         }

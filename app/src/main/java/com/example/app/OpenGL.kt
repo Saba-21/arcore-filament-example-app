@@ -1,9 +1,8 @@
 package com.example.app
 
 import android.opengl.*
-import arrow.core.Either
 
-fun createEglContext(): Either<Exception, EGLContext> {
+fun createEglContext(): EGLContext {
     val eglOpenGlEs3Bit = 0x40
     val display: EGLDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
     EGL14.eglInitialize(display, null, 0, null, 0)
@@ -38,9 +37,9 @@ fun createEglContext(): Either<Exception, EGLContext> {
         )
 
     return if (EGL14.eglMakeCurrent(display, surface, surface, context)) {
-        Either.right(context)
+        context
     } else {
-        Either.left(Exception("Error creating EGL Context"))
+        throw  Exception("Error creating EGL Context")
     }
 }
 
@@ -49,10 +48,10 @@ fun createExternalTextureId(): Int = IntArray(1)
     .first()
     .apply { GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, this) }
 
-fun destroyEglContext(context: EGLContext): Either<Exception, Unit> =
-    if (EGL14.eglDestroyContext(EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY), context)
-    ) {
-        Either.right(Unit)
+fun destroyEglContext(context: EGLContext) {
+    if (EGL14.eglDestroyContext(EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY), context)) {
+
     } else {
-        Either.left(Exception("Error destroying EGL context"))
+        throw Exception("Error destroying EGL context")
     }
+}
