@@ -2,7 +2,6 @@ package com.example.app.renderer
 
 import android.content.Context
 import com.example.app.*
-import com.example.app.aractivity.ScreenPosition
 import com.example.app.arcore.ArCore
 import com.example.app.filament.Filament
 import com.google.ar.core.Frame
@@ -15,7 +14,7 @@ import java.util.concurrent.TimeUnit
 
 class ModelRenderer(context: Context, private val arCore: ArCore, private val filament: Filament) {
     sealed class ModelEvent {
-        data class Move(val screenPosition: ScreenPosition) : ModelEvent()
+        data class Move(val x: Float, val y: Float) : ModelEvent()
         data class Update(val rotate: Float, val scale: Float) : ModelEvent()
     }
 
@@ -41,7 +40,7 @@ class ModelRenderer(context: Context, private val arCore: ArCore, private val fi
                 withContext(Dispatchers.IO) {
                     @Suppress("BlockingMethodInNonBlockingContext")
                     context.assets
-                        .open("eren-hiphop-dance.glb")
+                        .open("stand.glb")
                         .use { input ->
                             val bytes = ByteArray(input.available())
                             input.read(bytes)
@@ -58,8 +57,8 @@ class ModelRenderer(context: Context, private val arCore: ArCore, private val fi
                             ?.let {
                                 arCore.frame
                                     .hitTest(
-                                        filament.surfaceView.width.toFloat() * modelEvent.screenPosition.x,
-                                        filament.surfaceView.height.toFloat() * modelEvent.screenPosition.y,
+                                        filament.surfaceView.width.toFloat() * modelEvent.x,
+                                        filament.surfaceView.height.toFloat() * modelEvent.y,
                                     )
                                     .maxByOrNull { it.trackable is Point }
                             }

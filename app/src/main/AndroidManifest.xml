@@ -31,10 +31,9 @@
 
         <activity
             android:name=".aractivity.ArActivity"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:launchMode="singleTask"
             android:resizeableActivity="false"
-            android:screenOrientation="fullSensor"
+            android:screenOrientation="portrait"
             android:theme="@style/Theme.ExampleApp.Fullscreen"
             android:windowSoftInputMode="adjustPan|stateHidden">
             <intent-filter>

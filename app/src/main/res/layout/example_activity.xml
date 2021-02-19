@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -10,22 +10,131 @@
 
     <SurfaceView
         android:id="@+id/surface_view"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_gravity="center" />
-
-    <FrameLayout
-        android:id="@+id/hand_motion_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clipChildren="false"
-        android:visibility="gone">
+        tools:layout_editor_absoluteX="-9dp"
+        tools:layout_editor_absoluteY="16dp" />
 
-        <com.example.app.arcore.HandMotionView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:foregroundGravity="center"
-            android:scaleType="center"
-            android:src="@drawable/sceneform_hand_phone" />
-    </FrameLayout>
-</FrameLayout>
+    <Button
+        android:id="@+id/rotatePlusButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="rotate +"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/scalePlusButton" />
+
+    <Button
+        android:id="@+id/rotateMinusButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="rotate -"
+        app:layout_constraintBottom_toTopOf="@id/rotatePlusButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/scaleMinusButton" />
+
+    <Button
+        android:id="@+id/scalePlusButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="scale +"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/rotatePlusButton"
+        app:layout_constraintStart_toEndOf="@+id/prev" />
+
+    <Button
+        android:id="@+id/scaleMinusButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="scale -"
+        app:layout_constraintBottom_toTopOf="@id/scalePlusButton"
+        app:layout_constraintEnd_toStartOf="@+id/rotateMinusButton"
+        app:layout_constraintStart_toEndOf="@+id/next" />
+
+    <Button
+        android:id="@+id/leftMove"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="left"
+        app:layout_constraintBottom_toTopOf="@id/bottomMove"
+        app:layout_constraintEnd_toStartOf="@id/bottomMove"
+        app:layout_constraintHorizontal_chainStyle="packed"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/topMove" />
+
+    <Button
+        android:id="@+id/rightMove"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="right"
+        app:layout_constraintBottom_toTopOf="@id/bottomMove"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/bottomMove"
+        app:layout_constraintTop_toBottomOf="@id/topMove" />
+
+    <Button
+        android:id="@+id/topMove"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="top"
+        app:layout_constraintBottom_toTopOf="@id/bottomMove"
+        app:layout_constraintEnd_toEndOf="@id/bottomMove"
+        app:layout_constraintStart_toStartOf="@id/bottomMove" />
+
+    <Button
+        android:id="@+id/bottomMove"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="bottom"
+        app:layout_constraintBottom_toTopOf="@id/rotateMinusButton"
+        app:layout_constraintEnd_toStartOf="@id/rightMove"
+        app:layout_constraintStart_toEndOf="@id/leftMove" />
+
+    <Button
+        android:id="@+id/place"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="place"
+        app:layout_constraintEnd_toStartOf="@+id/next"
+        app:layout_constraintHorizontal_chainStyle="packed"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/scaleMinusButton" />
+
+    <Button
+        android:id="@+id/remove"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="remove"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/prev"
+        app:layout_constraintHorizontal_chainStyle="packed"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/next"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="next"
+        app:layout_constraintEnd_toStartOf="@+id/scaleMinusButton"
+        app:layout_constraintStart_toEndOf="@+id/place"
+        app:layout_constraintTop_toTopOf="@id/scaleMinusButton" />
+
+    <Button
+        android:id="@+id/prev"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="prev"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/scalePlusButton"
+        app:layout_constraintStart_toEndOf="@+id/remove" />
+
+    <ProgressBar
+        android:id="@+id/loader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

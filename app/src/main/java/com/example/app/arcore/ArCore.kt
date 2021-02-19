@@ -10,7 +10,7 @@ import android.os.Handler
 import android.util.DisplayMetrics
 import android.view.Surface
 import android.view.View
-import android.widget.FrameLayout
+import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.core.view.updateLayoutParams
 import com.example.app.*
@@ -159,7 +159,7 @@ class ArCore(private val activity: Activity, val filament: Filament, private val
             viewHeight = displayHeight
         }
 
-        view.updateLayoutParams<FrameLayout.LayoutParams> {
+        view.updateLayoutParams<ViewGroup.LayoutParams> {
             width = viewWidth
             height = viewHeight
         }

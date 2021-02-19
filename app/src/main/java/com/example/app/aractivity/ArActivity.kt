@@ -3,73 +3,50 @@ package com.example.app.aractivity
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.view.*
+import android.widget.Button
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
-import androidx.core.view.isVisible
 import com.example.app.*
 import com.example.app.arcore.ArCore
 import com.example.app.filament.Filament
-import com.example.app.gesture.*
-import com.example.app.toRadians
-import com.example.app.x
-import com.example.app.y
 import com.example.app.renderer.*
 import com.google.ar.core.ArCoreApk
+import com.google.ar.core.Frame
 import com.google.ar.core.Plane
 import com.google.ar.core.TrackingState
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
-import java.util.concurrent.TimeUnit
-import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 class ArActivity : AppCompatActivity() {
+
     private val resumeBehavior: MutableStateFlow<Unit?> =
         MutableStateFlow(null)
 
     private val requestPermissionResultEvents: MutableSharedFlow<PermissionResultEvent> =
         MutableSharedFlow(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
-    private val configurationChangedEvents: MutableSharedFlow<Configuration> =
-        MutableSharedFlow(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-
-    private val dragEvents: MutableSharedFlow<Pair<ViewRect, TouchEvent>> =
-        MutableSharedFlow(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-
-    private val scaleEvents: MutableSharedFlow<Float> =
-        MutableSharedFlow(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-
-    private val rotateEvents: MutableSharedFlow<Float> =
-        MutableSharedFlow(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-
-    private val arTrackingEvents: MutableSharedFlow<Unit> =
-        MutableSharedFlow(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-
     private val arCoreBehavior: MutableStateFlow<Pair<ArCore, FrameCallback>?> =
         MutableStateFlow(null)
 
-    private lateinit var transformationSystem: TransformationSystem
-
     private val createScope = CoroutineScope(Dispatchers.Main)
+
     private lateinit var startScope: CoroutineScope
 
     private lateinit var surfaceView: SurfaceView
-    private lateinit var handMotionContainer:View
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.example_activity)
         surfaceView = findViewById(R.id.surface_view)
-        handMotionContainer = findViewById(R.id.hand_motion_container)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
@@ -86,108 +63,6 @@ class ArActivity : AppCompatActivity() {
                 .or(View.SYSTEM_UI_FLAG_FULLSCREEN)       // hide status bar
                 .or(View.SYSTEM_UI_FLAG_HIDE_NAVIGATION)  // hide navigation bar
                 .or(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY) // hide stat/nav bar after interaction timeout
-        }
-
-        transformationSystem = TransformationSystem(resources.displayMetrics)
-
-        // pinch gesture events
-        transformationSystem.pinchRecognizer.addOnGestureStartedListener(
-            object : PinchGestureRecognizer.OnGestureStartedListener {
-                override fun onGestureStarted(gesture: PinchGesture) {
-                    update(gesture)
-
-                    gesture.setGestureEventListener(
-                        object : PinchGesture.OnGestureEventListener {
-                            override fun onFinished(gesture: PinchGesture) {
-                                update(gesture)
-                            }
-
-                            override fun onUpdated(gesture: PinchGesture) {
-                                update(gesture)
-                            }
-                        },
-                    )
-                }
-
-                fun update(gesture: PinchGesture) {
-                    scaleEvents.tryEmit(1f + gesture.gapDeltaInches())
-                }
-            }
-        )
-
-        // twist gesture events
-        transformationSystem.twistRecognizer.addOnGestureStartedListener(
-            object : TwistGestureRecognizer.OnGestureStartedListener {
-                override fun onGestureStarted(gesture: TwistGesture) {
-                    update(gesture)
-
-                    gesture.setGestureEventListener(
-                        object : TwistGesture.OnGestureEventListener {
-                            override fun onFinished(gesture: TwistGesture) {
-                                update(gesture)
-                            }
-
-                            override fun onUpdated(gesture: TwistGesture) {
-                                update(gesture)
-                            }
-                        },
-                    )
-                }
-
-                fun update(gesture: TwistGesture) {
-                    rotateEvents.tryEmit(-gesture.deltaRotationDegrees.toRadians)
-                }
-            }
-        )
-
-        // drag gesture events
-        transformationSystem.dragRecognizer.addOnGestureStartedListener(
-            object : DragGestureRecognizer.OnGestureStartedListener {
-                override fun onGestureStarted(gesture: DragGesture) {
-                    Pair(
-                        surfaceView.toViewRect(),
-                        TouchEvent.Move(gesture.position.x, gesture.position.y),
-                    )
-                        .let { dragEvents.tryEmit(it) }
-
-                    gesture.setGestureEventListener(
-                        object : DragGesture.OnGestureEventListener {
-                            override fun onFinished(gesture: DragGesture) {
-                                Pair(
-                                    surfaceView.toViewRect(),
-                                    TouchEvent.Stop(gesture.position.x, gesture.position.y),
-                                )
-                                    .let { dragEvents.tryEmit(it) }
-                            }
-
-                            override fun onUpdated(gesture: DragGesture) {
-                                Pair(
-                                    surfaceView.toViewRect(),
-                                    TouchEvent.Move(gesture.position.x, gesture.position.y),
-                                )
-                                    .let { dragEvents.tryEmit(it) }
-                            }
-                        },
-                    )
-                }
-            },
-        )
-
-        // tap and gesture events
-        surfaceView.setOnTouchListener { _, motionEvent ->
-            if (motionEvent.action == MotionEvent.ACTION_UP &&
-                (motionEvent.eventTime - motionEvent.downTime) <
-                resources.getInteger(R.integer.tap_event_milliseconds)
-            ) {
-                Pair(
-                    surfaceView.toViewRect(),
-                    TouchEvent.Stop(motionEvent.x, motionEvent.y),
-                )
-                    .let { dragEvents.tryEmit(it) }
-            }
-
-            transformationSystem.onTouch(motionEvent)
-            true
         }
 
         createScope.launch {
@@ -240,11 +115,6 @@ class ArActivity : AppCompatActivity() {
         resumeBehavior.tryEmit(null)
     }
 
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        configurationChangedEvents.tryEmit(newConfig)
-    }
-
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<String>,
@@ -253,7 +123,6 @@ class ArActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         requestPermissionResultEvents.tryEmit(PermissionResultEvent(requestCode, grantResults))
     }
-
 
     private suspend fun createUx() {
         // wait for activity to resume
@@ -298,8 +167,7 @@ class ArActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(
                 this@ArActivity,
                 Manifest.permission.CAMERA,
-            ) !=
-            PackageManager.PERMISSION_GRANTED
+            ) != PackageManager.PERMISSION_GRANTED
         ) {
             showCameraPermissionDialog(this@ArActivity)
 
@@ -318,7 +186,6 @@ class ArActivity : AppCompatActivity() {
             }
         }
 
-        // TODO: eliminate nesting of finally blocks
         val filament = Filament(this@ArActivity, surfaceView)
 
         try {
@@ -326,57 +193,26 @@ class ArActivity : AppCompatActivity() {
 
             try {
                 val lightRenderer = LightRenderer(this@ArActivity, arCore.filament)
-                val planeRenderer = PlaneRenderer(this@ArActivity, arCore.filament)
                 val modelRenderer = ModelRenderer(this@ArActivity, arCore, arCore.filament)
 
                 try {
-                    val frameCallback =
-                        FrameCallback(
-                            arCore,
-                            doFrame = { frame ->
-                                if (frame.getUpdatedTrackables(Plane::class.java)
-                                        .any { it.trackingState == TrackingState.TRACKING }
-                                ) {
-                                    arTrackingEvents.tryEmit(Unit)
-                                }
+                    val doFrame = { frame: Frame ->
+                        val hasTrackedState = frame.getUpdatedTrackables(Plane::class.java)
+                            .any { it.trackingState == TrackingState.TRACKING }
 
-                                lightRenderer.doFrame(frame)
-                                planeRenderer.doFrame(frame)
-                                modelRenderer.doFrame(frame)
-                            },
-                        )
+                        if (hasTrackedState) {
+                            findViewById<View>(R.id.loader).visibility = View.GONE
+                        }
+
+                        lightRenderer.doFrame(frame)
+                        modelRenderer.doFrame(frame)
+                    }
+
+                    val frameCallback = FrameCallback(arCore, doFrame)
 
                     arCoreBehavior.emit(Pair(arCore, frameCallback))
 
-                    with(CoroutineScope(coroutineContext)) {
-                        launch {
-                            configurationChangedEvents.collect { arCore.configurationChange() }
-                        }
-
-                        launch {
-                            dragEvents
-                                .map { (viewRect, touchEvent) ->
-                                    ScreenPosition(
-                                        x = touchEvent.x / viewRect.width,
-                                        y = touchEvent.y / viewRect.height,
-                                    )
-                                        .let { ModelRenderer.ModelEvent.Move(it) }
-                                }
-                                .collect { modelRenderer.modelEvents.tryEmit(it) }
-                        }
-
-                        launch {
-                            scaleEvents
-                                .map { ModelRenderer.ModelEvent.Update(0f, it) }
-                                .collect { modelRenderer.modelEvents.tryEmit(it) }
-                        }
-
-                        launch {
-                            rotateEvents
-                                .map { ModelRenderer.ModelEvent.Update(it, 1f) }
-                                .collect { modelRenderer.modelEvents.tryEmit(it) }
-                        }
-                    }
+                    setClickListeners(modelRenderer)
 
                     awaitCancellation()
                 } finally {
@@ -396,32 +232,51 @@ class ArActivity : AppCompatActivity() {
         try {
             arCore.session.resume()
             frameCallback.start()
-
-            coroutineScope {
-                val job = launch(coroutineContext) {
-                    TimeUnit.SECONDS
-                        .toMillis(
-                            resources
-                                .getInteger(R.integer.show_hand_motion_timeout_seconds)
-                                .toLong(),
-                        )
-                        .let { delay(it) }
-
-                    handMotionContainer.isVisible = true
-                }
-
-                launch(coroutineContext) {
-                    arTrackingEvents.first()
-                    job.cancel()
-                    handMotionContainer.isVisible = false
-                }
-            }
-
             awaitCancellation()
         } finally {
-            handMotionContainer.isVisible = false
             frameCallback.stop()
             arCore.session.pause()
+        }
+    }
+
+    private fun setClickListeners(modelRenderer: ModelRenderer) {
+        findViewById<Button>(R.id.place).setOnClickListener {
+            val centerX = surfaceView.width / 2f
+            val centerY = surfaceView.height / 2f
+            val x = centerX / surfaceView.width
+            val y = centerY / surfaceView.height
+            val event = ModelRenderer.ModelEvent.Move(x = x, y = y)
+            modelRenderer.modelEvents.tryEmit(event)
+        }
+
+        findViewById<Button>(R.id.rotateMinusButton).setOnClickListener {
+            val rotation = ModelRenderer.ModelEvent.Update((-10f).toRadians, 1f)
+            modelRenderer.modelEvents.tryEmit(rotation)
+        }
+
+        findViewById<Button>(R.id.rotatePlusButton).setOnClickListener {
+            val rotation = ModelRenderer.ModelEvent.Update((10f).toRadians, 1f)
+            modelRenderer.modelEvents.tryEmit(rotation)
+        }
+
+        var scale = 0f
+
+        findViewById<Button>(R.id.scalePlusButton).setOnClickListener {
+            if (scale < 0)
+                scale = 0.01f
+            else
+                scale += 0.01f
+            val rotation = ModelRenderer.ModelEvent.Update(0f, 1f + scale)
+            modelRenderer.modelEvents.tryEmit(rotation)
+        }
+
+        findViewById<Button>(R.id.scaleMinusButton).setOnClickListener {
+            if (scale > 0)
+                scale = -0.01f
+            else
+                scale -= 0.01f
+            val rotation = ModelRenderer.ModelEvent.Update(0f, 1f + scale)
+            modelRenderer.modelEvents.tryEmit(rotation)
         }
     }
 
