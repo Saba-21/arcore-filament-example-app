@@ -1,13 +1,10 @@
 package com.example.app.aractivity
 
-import android.Manifest
-import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.*
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import com.example.app.*
 import com.example.app.arcore.ArCore
 import com.example.app.filament.Filament
@@ -34,13 +31,9 @@ class ArActivity : AppCompatActivity() {
 
     private lateinit var startScope: CoroutineScope
 
-    private lateinit var surfaceView: SurfaceView
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.example_activity)
-        surfaceView = findViewById(R.id.surface_view)
-
         createScope.launch {
             try {
                 createUx()
@@ -58,7 +51,6 @@ class ArActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         startScope = CoroutineScope(Dispatchers.Main)
-
         startScope.launch {
             try {
                 startUx()
@@ -93,31 +85,18 @@ class ArActivity : AppCompatActivity() {
     }
 
     private suspend fun createUx() {
-        // wait for activity to resume
         resumeBehavior.filterNotNull().first()
 
-        // if permission is not granted, request permission
-        if (ContextCompat.checkSelfPermission(
-                this@ArActivity,
-                Manifest.permission.CAMERA,
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-
-            requestPermissions(
-                arrayOf(Manifest.permission.CAMERA),
-                1,
-            )
-
-            // check if permission was granted
-            if (requestPermissionResultEvents
-                    .filter { it.requestCode == 1 }
-                    .first()
-                    .grantResults.any { it != PackageManager.PERMISSION_GRANTED }
-            ) {
-                throw RuntimeException()
-            }
+        if (hasPermission()) {
+            requestPermission()
+            val gotPermission = requestPermissionResultEvents
+                .first()
+                .grantResults.any { it != PackageManager.PERMISSION_GRANTED }
+            if (gotPermission)
+                return
         }
 
+        val surfaceView = findViewById<SurfaceView>(R.id.surface_view)
         val filament = Filament(this@ArActivity, surfaceView)
 
         try {
@@ -144,7 +123,7 @@ class ArActivity : AppCompatActivity() {
 
                     arCoreBehavior.emit(Pair(arCore, frameCallback))
 
-                    setClickListeners(modelRenderer)
+                    setClickListeners(modelRenderer, surfaceView)
 
                     awaitCancellation()
                 } finally {
@@ -160,7 +139,6 @@ class ArActivity : AppCompatActivity() {
 
     private suspend fun startUx() {
         val (arCore, frameCallback) = arCoreBehavior.filterNotNull().first()
-
         try {
             arCore.session.resume()
             frameCallback.start()
@@ -171,7 +149,7 @@ class ArActivity : AppCompatActivity() {
         }
     }
 
-    private fun setClickListeners(modelRenderer: ModelRenderer) {
+    private fun setClickListeners(modelRenderer: ModelRenderer, surfaceView: SurfaceView) {
         findViewById<Button>(R.id.place).setOnClickListener {
             val centerX = surfaceView.width / 2f
             val centerY = surfaceView.height / 2f
