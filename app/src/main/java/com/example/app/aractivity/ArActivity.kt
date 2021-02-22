@@ -3,27 +3,21 @@ package com.example.app.aractivity
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.view.*
 import android.widget.Button
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.view.WindowCompat
 import com.example.app.*
 import com.example.app.arcore.ArCore
 import com.example.app.filament.Filament
 import com.example.app.renderer.*
-import com.google.ar.core.ArCoreApk
 import com.google.ar.core.Frame
 import com.google.ar.core.Plane
 import com.google.ar.core.TrackingState
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 class ArActivity : AppCompatActivity() {
 
@@ -42,37 +36,15 @@ class ArActivity : AppCompatActivity() {
 
     private lateinit var surfaceView: SurfaceView
 
-    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.example_activity)
         surfaceView = findViewById(R.id.surface_view)
 
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            findViewById<View>(android.R.id.content)!!.windowInsetsController!!
-                .also { windowInsetsController ->
-                    windowInsetsController.systemBarsBehavior =
-                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-
-                    windowInsetsController.hide(WindowInsets.Type.systemBars())
-                }
-        } else @Suppress("DEPRECATION") run {
-            window.decorView.systemUiVisibility = window.decorView.systemUiVisibility
-                .or(View.SYSTEM_UI_FLAG_FULLSCREEN)       // hide status bar
-                .or(View.SYSTEM_UI_FLAG_HIDE_NAVIGATION)  // hide navigation bar
-                .or(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY) // hide stat/nav bar after interaction timeout
-        }
-
         createScope.launch {
             try {
                 createUx()
             } catch (error: Throwable) {
-                if (error !is UserCanceled) {
-                    error.printStackTrace()
-                }
-            } finally {
                 finish()
             }
         }
@@ -91,10 +63,6 @@ class ArActivity : AppCompatActivity() {
             try {
                 startUx()
             } catch (error: Throwable) {
-                if (error !is UserCanceled) {
-                    error.printStackTrace()
-                }
-
                 finish()
             }
         }
@@ -128,61 +96,25 @@ class ArActivity : AppCompatActivity() {
         // wait for activity to resume
         resumeBehavior.filterNotNull().first()
 
-        if (checkIfOpenGlVersionSupported(minOpenGlVersion).not()) {
-            showOpenGlNotSupportedDialog(this@ArActivity)
-            // finish()
-            throw OpenGLVersionNotSupported
-        }
-
-        resumeBehavior.filterNotNull().first()
-
-        // if arcore is not installed, request to install
-        if (ArCoreApk
-                .getInstance()
-                .requestInstall(
-                    this@ArActivity,
-                    true,
-                    ArCoreApk.InstallBehavior.REQUIRED,
-                    ArCoreApk.UserMessageType.USER_ALREADY_INFORMED,
-                ) == ArCoreApk.InstallStatus.INSTALL_REQUESTED
-        ) {
-            // make sure activity is paused before waiting for resume
-            resumeBehavior.dropWhile { it != null }.filterNotNull().first()
-
-            // check if install succeeded
-            if (ArCoreApk
-                    .getInstance()
-                    .requestInstall(
-                        this@ArActivity,
-                        false,
-                        ArCoreApk.InstallBehavior.REQUIRED,
-                        ArCoreApk.UserMessageType.USER_ALREADY_INFORMED,
-                    ) != ArCoreApk.InstallStatus.INSTALLED
-            ) {
-                throw UserCanceled
-            }
-        }
-
         // if permission is not granted, request permission
         if (ContextCompat.checkSelfPermission(
                 this@ArActivity,
                 Manifest.permission.CAMERA,
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            showCameraPermissionDialog(this@ArActivity)
 
             requestPermissions(
                 arrayOf(Manifest.permission.CAMERA),
-                cameraPermissionRequestCode,
+                1,
             )
 
             // check if permission was granted
             if (requestPermissionResultEvents
-                    .filter { it.requestCode == cameraPermissionRequestCode }
+                    .filter { it.requestCode == 1 }
                     .first()
                     .grantResults.any { it != PackageManager.PERMISSION_GRANTED }
             ) {
-                throw UserCanceled
+                throw RuntimeException()
             }
         }
 
@@ -280,24 +212,4 @@ class ArActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun showCameraPermissionDialog(activity: AppCompatActivity) {
-        if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
-            suspendCancellableCoroutine<Unit> { continuation ->
-                val alertDialog = AlertDialog
-                    .Builder(activity)
-                    .setTitle(R.string.camera_permission_title)
-                    .setMessage(R.string.camera_permission_message)
-                    .setPositiveButton(android.R.string.ok) { _, _ ->
-                        continuation.resume(Unit)
-                    }
-                    .setNegativeButton(android.R.string.cancel) { _, _ ->
-                        continuation.resumeWithException(UserCanceled)
-                    }
-                    .setCancelable(false)
-                    .show()
-
-                continuation.invokeOnCancellation { alertDialog.dismiss() }
-            }
-        }
-    }
 }

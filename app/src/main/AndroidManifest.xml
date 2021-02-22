@@ -31,11 +31,7 @@
 
         <activity
             android:name=".aractivity.ArActivity"
-            android:launchMode="singleTask"
-            android:resizeableActivity="false"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.ExampleApp.Fullscreen"
-            android:windowSoftInputMode="adjustPan|stateHidden">
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
