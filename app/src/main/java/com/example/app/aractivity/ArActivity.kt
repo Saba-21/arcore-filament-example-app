@@ -103,11 +103,11 @@ class ArActivity : AppCompatActivity() {
             val arCore = ArCore(this@ArActivity, filament, surfaceView)
 
             try {
+
                 val lightRenderer = LightRenderer(this@ArActivity, arCore.filament)
-                val modelRenderer = ModelRenderer(this@ArActivity, arCore, arCore.filament)
 
                 try {
-                    val doFrame = { frame: Frame ->
+                    val doFrame = fun(frame: Frame) {
                         val hasTrackedState = frame.getUpdatedTrackables(Plane::class.java)
                             .any { it.trackingState == TrackingState.TRACKING }
 
@@ -115,19 +115,35 @@ class ArActivity : AppCompatActivity() {
                             findViewById<View>(R.id.loader).visibility = View.GONE
                         }
 
+                        renderers.forEach {
+                            it.doFrame(frame)
+                        }
+
                         lightRenderer.doFrame(frame)
-                        modelRenderer.doFrame(frame)
                     }
 
                     val frameCallback = FrameCallback(arCore, doFrame)
 
                     arCoreBehavior.emit(Pair(arCore, frameCallback))
 
-                    setClickListeners(modelRenderer, surfaceView)
+                    findViewById<Button>(R.id.place).setOnClickListener {
+
+                        val centerX = surfaceView.width / 2f
+                        val centerY = surfaceView.height / 2f
+                        val x = centerX / surfaceView.width
+                        val y = centerY / surfaceView.height
+                        val event = ModelRenderer.ModelEvent.Move(x = x, y = y)
+
+                        val modelRenderer =
+                            ModelRenderer(this@ArActivity, arCore, arCore.filament, event)
+                        renderers.add(modelRenderer)
+                    }
 
                     awaitCancellation()
                 } finally {
-                    modelRenderer.destroy()
+                    renderers.forEach {
+                        it.destroy()
+                    }
                 }
             } finally {
                 arCore.destroy()
@@ -136,6 +152,8 @@ class ArActivity : AppCompatActivity() {
             filament.destroy()
         }
     }
+
+    private var renderers = mutableListOf<ModelRenderer>()
 
     private suspend fun startUx() {
         val (arCore, frameCallback) = arCoreBehavior.filterNotNull().first()
@@ -149,45 +167,39 @@ class ArActivity : AppCompatActivity() {
         }
     }
 
-    private fun setClickListeners(modelRenderer: ModelRenderer, surfaceView: SurfaceView) {
-        findViewById<Button>(R.id.place).setOnClickListener {
-            val centerX = surfaceView.width / 2f
-            val centerY = surfaceView.height / 2f
-            val x = centerX / surfaceView.width
-            val y = centerY / surfaceView.height
-            val event = ModelRenderer.ModelEvent.Move(x = x, y = y)
-            modelRenderer.modelEvents.tryEmit(event)
-        }
+    private fun setClickListeners(
+        surfaceView: SurfaceView
+    ) {
 
-        findViewById<Button>(R.id.rotateMinusButton).setOnClickListener {
-            val rotation = ModelRenderer.ModelEvent.Update((-10f).toRadians, 1f)
-            modelRenderer.modelEvents.tryEmit(rotation)
-        }
-
-        findViewById<Button>(R.id.rotatePlusButton).setOnClickListener {
-            val rotation = ModelRenderer.ModelEvent.Update((10f).toRadians, 1f)
-            modelRenderer.modelEvents.tryEmit(rotation)
-        }
-
-        var scale = 0f
-
-        findViewById<Button>(R.id.scalePlusButton).setOnClickListener {
-            if (scale < 0)
-                scale = 0.01f
-            else
-                scale += 0.01f
-            val rotation = ModelRenderer.ModelEvent.Update(0f, 1f + scale)
-            modelRenderer.modelEvents.tryEmit(rotation)
-        }
-
-        findViewById<Button>(R.id.scaleMinusButton).setOnClickListener {
-            if (scale > 0)
-                scale = -0.01f
-            else
-                scale -= 0.01f
-            val rotation = ModelRenderer.ModelEvent.Update(0f, 1f + scale)
-            modelRenderer.modelEvents.tryEmit(rotation)
-        }
+//        findViewById<Button>(R.id.rotateMinusButton).setOnClickListener {
+//            val rotation = ModelRenderer.ModelEvent.Update((-10f).toRadians, 1f)
+//            modelRenderer.modelEvents.tryEmit(rotation)
+//        }
+//
+//        findViewById<Button>(R.id.rotatePlusButton).setOnClickListener {
+//            val rotation = ModelRenderer.ModelEvent.Update((10f).toRadians, 1f)
+//            modelRenderer.modelEvents.tryEmit(rotation)
+//        }
+//
+//        var scale = 0f
+//
+//        findViewById<Button>(R.id.scalePlusButton).setOnClickListener {
+//            if (scale < 0)
+//                scale = 0.01f
+//            else
+//                scale += 0.01f
+//            val rotation = ModelRenderer.ModelEvent.Update(0f, 1f + scale)
+//            modelRenderer.modelEvents.tryEmit(rotation)
+//        }
+//
+//        findViewById<Button>(R.id.scaleMinusButton).setOnClickListener {
+//            if (scale > 0)
+//                scale = -0.01f
+//            else
+//                scale -= 0.01f
+//            val rotation = ModelRenderer.ModelEvent.Update(0f, 1f + scale)
+//            modelRenderer.modelEvents.tryEmit(rotation)
+//        }
     }
 
 }

@@ -8,11 +8,18 @@ import com.google.ar.core.Frame
 import com.google.ar.core.Point
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.mapNotNull
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 
-class ModelRenderer(context: Context, private val arCore: ArCore, private val filament: Filament) {
+class ModelRenderer(
+    context: Context,
+    private val arCore: ArCore,
+    private val filament: Filament,
+    initialPos: ModelEvent.Move
+) {
     sealed class ModelEvent {
         data class Move(val x: Float, val y: Float) : ModelEvent()
         data class Update(val rotate: Float, val scale: Float) : ModelEvent()
@@ -24,9 +31,6 @@ class ModelRenderer(context: Context, private val arCore: ArCore, private val fi
     private val doFrameEvents: MutableSharedFlow<Frame> =
         MutableSharedFlow(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
-    private val canDrawBehavior: MutableStateFlow<Unit?> =
-        MutableStateFlow(null)
-
     private var translation: V3 = v3Origin
     private var rotate: Float = 0f
     private var scale: Float = 1f
@@ -35,6 +39,17 @@ class ModelRenderer(context: Context, private val arCore: ArCore, private val fi
         CoroutineScope(Dispatchers.Main)
 
     init {
+        arCore.frame
+            .hitTest(
+                filament.surfaceView.width.toFloat() * initialPos.x,
+                filament.surfaceView.height.toFloat() * initialPos.y,
+            )
+            .maxByOrNull { it.trackable is Point }?.let {
+                V3(it.hitPose.translation)
+            }?.let {
+                translation = it
+            }
+
         coroutineScope.launch {
             val filamentAsset =
                 withContext(Dispatchers.IO) {
@@ -65,7 +80,6 @@ class ModelRenderer(context: Context, private val arCore: ArCore, private val fi
                             ?.let { V3(it.hitPose.translation) }
                     }
                     .collect {
-                        canDrawBehavior.tryEmit(Unit)
                         translation = it
                     }
             }
@@ -87,8 +101,6 @@ class ModelRenderer(context: Context, private val arCore: ArCore, private val fi
             }
 
             launch {
-                canDrawBehavior.filterNotNull().first()
-
                 doFrameEvents.collect { frame ->
                     // update animator
                     val animator = filamentAsset.animator
