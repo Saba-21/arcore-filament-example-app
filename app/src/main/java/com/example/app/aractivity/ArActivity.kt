@@ -31,9 +31,13 @@ class ArActivity : AppCompatActivity() {
 
     private lateinit var startScope: CoroutineScope
 
+    private var renderers = mutableListOf<ModelRenderer>()
+    private lateinit var surfaceView: SurfaceView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.example_activity)
+        surfaceView = findViewById(R.id.surface_view)
         createScope.launch {
             try {
                 createUx()
@@ -96,7 +100,6 @@ class ArActivity : AppCompatActivity() {
                 return
         }
 
-        val surfaceView = findViewById<SurfaceView>(R.id.surface_view)
         val filament = Filament(this@ArActivity, surfaceView)
 
         try {
@@ -116,7 +119,7 @@ class ArActivity : AppCompatActivity() {
                         }
 
                         renderers.forEach {
-                            it.doFrame(frame)
+                            it.doFrameEvents.tryEmit(frame)
                         }
 
                         lightRenderer.doFrame(frame)
@@ -126,18 +129,7 @@ class ArActivity : AppCompatActivity() {
 
                     arCoreBehavior.emit(Pair(arCore, frameCallback))
 
-                    findViewById<Button>(R.id.place).setOnClickListener {
-
-                        val centerX = surfaceView.width / 2f
-                        val centerY = surfaceView.height / 2f
-                        val x = centerX / surfaceView.width
-                        val y = centerY / surfaceView.height
-                        val event = ModelRenderer.ModelEvent.Move(x = x, y = y)
-
-                        val modelRenderer =
-                            ModelRenderer(this@ArActivity, arCore, arCore.filament, event)
-                        renderers.add(modelRenderer)
-                    }
+                    setClickListeners(arCore)
 
                     awaitCancellation()
                 } finally {
@@ -153,8 +145,6 @@ class ArActivity : AppCompatActivity() {
         }
     }
 
-    private var renderers = mutableListOf<ModelRenderer>()
-
     private suspend fun startUx() {
         val (arCore, frameCallback) = arCoreBehavior.filterNotNull().first()
         try {
@@ -167,39 +157,49 @@ class ArActivity : AppCompatActivity() {
         }
     }
 
-    private fun setClickListeners(
-        surfaceView: SurfaceView
-    ) {
+    private fun setClickListeners(arCore: ArCore) {
 
-//        findViewById<Button>(R.id.rotateMinusButton).setOnClickListener {
-//            val rotation = ModelRenderer.ModelEvent.Update((-10f).toRadians, 1f)
-//            modelRenderer.modelEvents.tryEmit(rotation)
-//        }
-//
-//        findViewById<Button>(R.id.rotatePlusButton).setOnClickListener {
-//            val rotation = ModelRenderer.ModelEvent.Update((10f).toRadians, 1f)
-//            modelRenderer.modelEvents.tryEmit(rotation)
-//        }
-//
-//        var scale = 0f
-//
-//        findViewById<Button>(R.id.scalePlusButton).setOnClickListener {
-//            if (scale < 0)
-//                scale = 0.01f
-//            else
-//                scale += 0.01f
-//            val rotation = ModelRenderer.ModelEvent.Update(0f, 1f + scale)
-//            modelRenderer.modelEvents.tryEmit(rotation)
-//        }
-//
-//        findViewById<Button>(R.id.scaleMinusButton).setOnClickListener {
-//            if (scale > 0)
-//                scale = -0.01f
-//            else
-//                scale -= 0.01f
-//            val rotation = ModelRenderer.ModelEvent.Update(0f, 1f + scale)
-//            modelRenderer.modelEvents.tryEmit(rotation)
-//        }
+        findViewById<Button>(R.id.place).setOnClickListener {
+            val centerX = surfaceView.width / 2f
+            val centerY = surfaceView.height / 2f
+            val x = centerX / surfaceView.width
+            val y = centerY / surfaceView.height
+            val event = ModelRenderer.ModelEvent.Move(x = x, y = y)
+
+            val modelRenderer =
+                ModelRenderer(this@ArActivity, arCore, arCore.filament, event)
+            renderers.add(modelRenderer)
+        }
+
+        findViewById<Button>(R.id.rotateMinusButton).setOnClickListener {
+            val rotation = ModelRenderer.ModelEvent.Update((-10f).toRadians, 1f)
+            renderers.lastOrNull()?.modelEvents?.tryEmit(rotation)
+        }
+
+        findViewById<Button>(R.id.rotatePlusButton).setOnClickListener {
+            val rotation = ModelRenderer.ModelEvent.Update((10f).toRadians, 1f)
+            renderers.lastOrNull()?.modelEvents?.tryEmit(rotation)
+        }
+
+        var scale = 0f
+
+        findViewById<Button>(R.id.scalePlusButton).setOnClickListener {
+            if (scale < 0)
+                scale = 0.01f
+            else
+                scale += 0.01f
+            val scaleUpdate = ModelRenderer.ModelEvent.Update(0f, 1f + scale)
+            renderers.lastOrNull()?.modelEvents?.tryEmit(scaleUpdate)
+        }
+
+        findViewById<Button>(R.id.scaleMinusButton).setOnClickListener {
+            if (scale > 0)
+                scale = -0.01f
+            else
+                scale -= 0.01f
+            val scaleUpdate = ModelRenderer.ModelEvent.Update(0f, 1f + scale)
+            renderers.lastOrNull()?.modelEvents?.tryEmit(scaleUpdate)
+        }
     }
 
 }

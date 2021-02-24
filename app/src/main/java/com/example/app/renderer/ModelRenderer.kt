@@ -28,7 +28,7 @@ class ModelRenderer(
     val modelEvents: MutableSharedFlow<ModelEvent> =
         MutableSharedFlow(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
-    private val doFrameEvents: MutableSharedFlow<Frame> =
+    val doFrameEvents: MutableSharedFlow<Frame> =
         MutableSharedFlow(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     private var translation: V3 = v3Origin
@@ -136,7 +136,4 @@ class ModelRenderer(
         coroutineScope.cancel()
     }
 
-    fun doFrame(frame: Frame) {
-        doFrameEvents.tryEmit(frame)
-    }
 }
