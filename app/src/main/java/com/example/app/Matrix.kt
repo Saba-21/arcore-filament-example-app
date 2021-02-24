@@ -1,5 +1,3 @@
-@file:Suppress("unused")
-
 package com.example.app
 
 import android.app.Activity
@@ -15,7 +13,10 @@ import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 import java.nio.channels.Channels
-import kotlin.math.*
+import kotlin.math.PI
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.sqrt
 
 inline val Float.Companion.size get() = java.lang.Float.BYTES
 

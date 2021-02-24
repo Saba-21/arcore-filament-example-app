@@ -18,21 +18,21 @@ import kotlinx.coroutines.flow.*
 
 class ArActivity : AppCompatActivity() {
 
+    private val createScope = CoroutineScope(Dispatchers.Main)
+    private lateinit var startScope: CoroutineScope
+
     private val resumeBehavior: MutableStateFlow<Unit?> =
         MutableStateFlow(null)
-
     private val requestPermissionResultEvents: MutableSharedFlow<PermissionResultEvent> =
         MutableSharedFlow(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-
     private val arCoreBehavior: MutableStateFlow<Pair<ArCore, FrameCallback>?> =
         MutableStateFlow(null)
 
-    private val createScope = CoroutineScope(Dispatchers.Main)
-
-    private lateinit var startScope: CoroutineScope
-
-    private var renderers = mutableListOf<ModelRenderer>()
     private lateinit var surfaceView: SurfaceView
+    private lateinit var filament: Filament
+    private lateinit var arCore: ArCore
+    private lateinit var lightRenderer: LightRenderer
+    private var renderers = mutableListOf<ModelRenderer>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,7 +40,7 @@ class ArActivity : AppCompatActivity() {
         surfaceView = findViewById(R.id.surface_view)
         createScope.launch {
             try {
-                createUx()
+                createAR()
             } catch (error: Throwable) {
                 finish()
             }
@@ -57,7 +57,7 @@ class ArActivity : AppCompatActivity() {
         startScope = CoroutineScope(Dispatchers.Main)
         startScope.launch {
             try {
-                startUx()
+                startAR()
             } catch (error: Throwable) {
                 finish()
             }
@@ -88,7 +88,7 @@ class ArActivity : AppCompatActivity() {
         requestPermissionResultEvents.tryEmit(PermissionResultEvent(requestCode, grantResults))
     }
 
-    private suspend fun createUx() {
+    private suspend fun createAR() {
         resumeBehavior.filterNotNull().first()
 
         if (hasPermission()) {
@@ -100,52 +100,51 @@ class ArActivity : AppCompatActivity() {
                 return
         }
 
-        val filament = Filament(this@ArActivity, surfaceView)
-
         try {
-            val arCore = ArCore(this@ArActivity, filament, surfaceView)
 
-            try {
+            filament = Filament(this@ArActivity, surfaceView)
+            arCore = ArCore(this@ArActivity, filament, surfaceView)
+            lightRenderer = LightRenderer(this@ArActivity, arCore.filament)
 
-                val lightRenderer = LightRenderer(this@ArActivity, arCore.filament)
+            val doFrame = fun(frame: Frame) {
 
-                try {
-                    val doFrame = fun(frame: Frame) {
-                        val hasTrackedState = frame.getUpdatedTrackables(Plane::class.java)
-                            .any { it.trackingState == TrackingState.TRACKING }
+                val hasTrackedState = frame.getUpdatedTrackables(Plane::class.java)
+                    .any { it.trackingState == TrackingState.TRACKING }
 
-                        if (hasTrackedState) {
-                            findViewById<View>(R.id.loader).visibility = View.GONE
-                        }
+                if (hasTrackedState)
+                    findViewById<View>(R.id.loader).visibility = View.GONE
 
-                        renderers.forEach {
-                            it.doFrameEvents.tryEmit(frame)
-                        }
-
-                        lightRenderer.doFrame(frame)
-                    }
-
-                    val frameCallback = FrameCallback(arCore, doFrame)
-
-                    arCoreBehavior.emit(Pair(arCore, frameCallback))
-
-                    setClickListeners(arCore)
-
-                    awaitCancellation()
-                } finally {
-                    renderers.forEach {
-                        it.destroy()
-                    }
+                renderers.forEach {
+                    it.doFrameEvents.tryEmit(frame)
                 }
-            } finally {
-                arCore.destroy()
+
+                lightRenderer.doFrame(frame)
             }
+
+            val frameCallback = FrameCallback(arCore, doFrame)
+
+            arCoreBehavior.emit(Pair(arCore, frameCallback))
+
+            setClickListeners(arCore)
+
+            awaitCancellation()
         } finally {
+            destroyAR()
+        }
+
+    }
+
+    private fun destroyAR() {
+        if (this::filament.isInitialized)
             filament.destroy()
+        if (this::arCore.isInitialized)
+            arCore.destroy()
+        renderers.forEach {
+            it.destroy()
         }
     }
 
-    private suspend fun startUx() {
+    private suspend fun startAR() {
         val (arCore, frameCallback) = arCoreBehavior.filterNotNull().first()
         try {
             arCore.session.resume()
@@ -166,8 +165,7 @@ class ArActivity : AppCompatActivity() {
             val y = centerY / surfaceView.height
             val event = ModelRenderer.ModelEvent.Move(x = x, y = y)
 
-            val modelRenderer =
-                ModelRenderer(this@ArActivity, arCore, arCore.filament, event)
+            val modelRenderer = ModelRenderer(this@ArActivity, arCore, arCore.filament, event)
             renderers.add(modelRenderer)
         }
 
@@ -181,23 +179,13 @@ class ArActivity : AppCompatActivity() {
             renderers.lastOrNull()?.modelEvents?.tryEmit(rotation)
         }
 
-        var scale = 0f
-
         findViewById<Button>(R.id.scalePlusButton).setOnClickListener {
-            if (scale < 0)
-                scale = 0.01f
-            else
-                scale += 0.01f
-            val scaleUpdate = ModelRenderer.ModelEvent.Update(0f, 1f + scale)
+            val scaleUpdate = ModelRenderer.ModelEvent.Update(0f, 1.1f)
             renderers.lastOrNull()?.modelEvents?.tryEmit(scaleUpdate)
         }
 
         findViewById<Button>(R.id.scaleMinusButton).setOnClickListener {
-            if (scale > 0)
-                scale = -0.01f
-            else
-                scale -= 0.01f
-            val scaleUpdate = ModelRenderer.ModelEvent.Update(0f, 1f + scale)
+            val scaleUpdate = ModelRenderer.ModelEvent.Update(0f, 0.9f)
             renderers.lastOrNull()?.modelEvents?.tryEmit(scaleUpdate)
         }
     }
