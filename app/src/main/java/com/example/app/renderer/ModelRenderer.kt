@@ -9,12 +9,8 @@ import com.google.ar.core.Frame
 import com.google.ar.core.Point
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.*
 import java.nio.ByteBuffer
-import java.util.concurrent.TimeUnit
 
 class ModelRenderer(
     private val context: Context,
@@ -113,26 +109,12 @@ class ModelRenderer(
             launch {
                 doFrameEvents.filter {
                     filamentAsset != null
-                }.collect { frame ->
-                    // update animator
-                    val animator = filamentAsset!!.animator
-
-                    if (animator.animationCount > 0) {
-                        animator.applyAnimation(
-                            0,
-                            (frame.timestamp /
-                                    TimeUnit.SECONDS.toNanos(1).toDouble())
-                                .toFloat() %
-                                    animator.getAnimationDuration(0),
-                        )
-
-                        animator.updateBoneMatrices()
-                    }
-
-                    filament.scene.addEntities(filamentAsset!!.entities)
-
+                }.map {
+                    filamentAsset!!
+                }.collect { asset ->
+                    filament.scene.addEntities(asset.entities)
                     filament.engine.transformManager.setTransform(
-                        filament.engine.transformManager.getInstance(filamentAsset!!.root),
+                        filament.engine.transformManager.getInstance(asset.root),
                         m4Identity()
                             .translate(translation.x, translation.y, translation.z)
                             .rotate(rotate.toDegrees, 0f, 1f, 0f)
