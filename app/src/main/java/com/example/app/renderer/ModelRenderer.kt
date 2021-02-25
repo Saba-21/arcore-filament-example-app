@@ -40,11 +40,10 @@ class ModelRenderer(
 
     init {
         arCore.frame
-            .hitTest(
-                filament.surfaceView.width.toFloat() * initialPos.x,
-                filament.surfaceView.height.toFloat() * initialPos.y,
-            )
-            .maxByOrNull { it.trackable is Point }?.let {
+            .hitTest(initialPos.x, initialPos.y)
+            .maxByOrNull {
+                it.trackable is Point
+            }?.let {
                 V3(it.hitPose.translation)
             }?.let {
                 translation = it

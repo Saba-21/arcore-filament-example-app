@@ -158,15 +158,38 @@ class ArActivity : AppCompatActivity() {
 
     private fun setClickListeners(arCore: ArCore) {
 
+        findViewById<Button>(R.id.remove).setOnClickListener {
+            renderers.lastOrNull()?.destroy()
+            renderers.removeLastOrNull()
+        }
+
         findViewById<Button>(R.id.place).setOnClickListener {
             val centerX = surfaceView.width / 2f
             val centerY = surfaceView.height / 2f
-            val x = centerX / surfaceView.width
-            val y = centerY / surfaceView.height
-            val event = ModelRenderer.ModelEvent.Move(x = x, y = y)
+            val event = ModelRenderer.ModelEvent.Move(x = centerX, y = centerY)
 
             val modelRenderer = ModelRenderer(this@ArActivity, arCore, arCore.filament, event)
             renderers.add(modelRenderer)
+        }
+
+        findViewById<Button>(R.id.topMove).setOnClickListener {
+            val move = ModelRenderer.ModelEvent.Move(x = 0f, y = 10f)
+            renderers.lastOrNull()?.modelEvents?.tryEmit(move)
+        }
+
+        findViewById<Button>(R.id.bottomMove).setOnClickListener {
+            val move = ModelRenderer.ModelEvent.Move(x = 0f, y = -10f)
+            renderers.lastOrNull()?.modelEvents?.tryEmit(move)
+        }
+
+        findViewById<Button>(R.id.rightMove).setOnClickListener {
+            val move = ModelRenderer.ModelEvent.Move(x = 0f, y = 0f)
+            renderers.lastOrNull()?.modelEvents?.tryEmit(move)
+        }
+
+        findViewById<Button>(R.id.leftMove).setOnClickListener {
+            val move = ModelRenderer.ModelEvent.Move(x = 0f, y = 0f)
+            renderers.lastOrNull()?.modelEvents?.tryEmit(move)
         }
 
         findViewById<Button>(R.id.rotateMinusButton).setOnClickListener {
