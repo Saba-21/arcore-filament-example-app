@@ -57,7 +57,7 @@ class ModelRenderer(
                 withContext(Dispatchers.IO) {
                     @Suppress("BlockingMethodInNonBlockingContext")
                     context.assets
-                        .open("stand.glb")
+                        .open("human.glb")
                         .use { input ->
                             val bytes = ByteArray(input.available())
                             input.read(bytes)
