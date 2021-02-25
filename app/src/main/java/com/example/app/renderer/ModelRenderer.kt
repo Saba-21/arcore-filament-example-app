@@ -72,31 +72,28 @@ class ModelRenderer(
             filamentAsset = load3DModel(initialModel)
 
             launch {
-                modelEvents
-                    .mapNotNull { modelEvent ->
-                        (modelEvent as? ModelEvent.Move)
-                            ?.let {
-                                arCore.frame
-                                    .hitTest(
-                                        filament.surfaceView.width.toFloat() * modelEvent.x,
-                                        filament.surfaceView.height.toFloat() * modelEvent.y,
-                                    )
-                                    .maxByOrNull { it.trackable is Point }
-                            }
-                            ?.let { V3(it.hitPose.translation) }
-                    }.collect {
-                        translation = it
-                    }
+                modelEvents.mapNotNull { modelEvent ->
+                    (modelEvent as? ModelEvent.Move)
+                        ?.let {
+                            arCore.frame
+                                .hitTest(
+                                    filament.surfaceView.width.toFloat() * modelEvent.x,
+                                    filament.surfaceView.height.toFloat() * modelEvent.y,
+                                )
+                                .maxByOrNull { it.trackable is Point }
+                        }?.let {
+                            V3(it.hitPose.translation)
+                        }
+                }.collect {
+                    translation = it
+                }
             }
 
             launch {
                 modelEvents.collect { modelEvent ->
                     when (modelEvent) {
                         is ModelEvent.Update ->
-                            Pair(
-                                (rotate + modelEvent.rotate).clampToTau,
-                                scale * modelEvent.scale
-                            )
+                            Pair((rotate + modelEvent.rotate).clampToTau, scale * modelEvent.scale)
                         else ->
                             Pair(rotate, scale)
                     }.let { (r, s) ->
@@ -112,15 +109,14 @@ class ModelRenderer(
                 }.map {
                     filamentAsset!!
                 }.collect { asset ->
+                    val entity = filament.engine.transformManager.getInstance(asset.root)
+                    val localTransform = m4Identity()
+                        .translate(translation.x, translation.y, translation.z)
+                        .rotate(rotate.toDegrees, 0f, 1f, 0f)
+                        .scale(scale, scale, scale)
+                        .floatArray
                     filament.scene.addEntities(asset.entities)
-                    filament.engine.transformManager.setTransform(
-                        filament.engine.transformManager.getInstance(asset.root),
-                        m4Identity()
-                            .translate(translation.x, translation.y, translation.z)
-                            .rotate(rotate.toDegrees, 0f, 1f, 0f)
-                            .scale(scale, scale, scale)
-                            .floatArray,
-                    )
+                    filament.engine.transformManager.setTransform(entity, localTransform)
                 }
             }
         }
