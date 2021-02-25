@@ -33,6 +33,7 @@ class ArActivity : AppCompatActivity() {
     private lateinit var arCore: ArCore
     private lateinit var lightRenderer: LightRenderer
     private var renderers = mutableListOf<ModelRenderer>()
+    private var chosenModel = ModelResource.values().first()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -166,51 +167,67 @@ class ArActivity : AppCompatActivity() {
         findViewById<Button>(R.id.place).setOnClickListener {
             val centerX = surfaceView.width / 2f
             val centerY = surfaceView.height / 2f
-            val event = ModelRenderer.ModelEvent.Move(x = centerX, y = centerY)
+            val event = ModelEvent.Move(x = centerX, y = centerY)
 
-            val modelRenderer = ModelRenderer(this@ArActivity, arCore, arCore.filament, event)
+            val modelRenderer =
+                ModelRenderer(this@ArActivity, arCore, arCore.filament, event, chosenModel)
             renderers.add(modelRenderer)
         }
 
+        findViewById<Button>(R.id.next).setOnClickListener {
+            val models = ModelResource.values().toList()
+            val newIndex = models.indexOf(chosenModel) + 1
+            chosenModel = models.getOrNull(newIndex) ?: return@setOnClickListener
+            renderers.lastOrNull()?.renderModel(chosenModel)
+        }
+
+        findViewById<Button>(R.id.prev).setOnClickListener {
+            val models = ModelResource.values().toList()
+            val newIndex = models.indexOf(chosenModel) - 1
+            chosenModel = models.getOrNull(newIndex) ?: return@setOnClickListener
+            renderers.lastOrNull()?.renderModel(chosenModel)
+        }
+
         findViewById<Button>(R.id.topMove).setOnClickListener {
-            val move = ModelRenderer.ModelEvent.Move(x = 0f, y = 10f)
+            val move = ModelEvent.Move(x = 0f, y = 10f)
             renderers.lastOrNull()?.modelEvents?.tryEmit(move)
         }
 
         findViewById<Button>(R.id.bottomMove).setOnClickListener {
-            val move = ModelRenderer.ModelEvent.Move(x = 0f, y = -10f)
+            val move = ModelEvent.Move(x = 0f, y = -10f)
             renderers.lastOrNull()?.modelEvents?.tryEmit(move)
         }
 
         findViewById<Button>(R.id.rightMove).setOnClickListener {
-            val move = ModelRenderer.ModelEvent.Move(x = 0f, y = 0f)
+            val move = ModelEvent.Move(x = 0f, y = 0f)
             renderers.lastOrNull()?.modelEvents?.tryEmit(move)
         }
 
         findViewById<Button>(R.id.leftMove).setOnClickListener {
-            val move = ModelRenderer.ModelEvent.Move(x = 0f, y = 0f)
+            val move = ModelEvent.Move(x = 0f, y = 0f)
             renderers.lastOrNull()?.modelEvents?.tryEmit(move)
         }
 
         findViewById<Button>(R.id.rotateMinusButton).setOnClickListener {
-            val rotation = ModelRenderer.ModelEvent.Update((-10f).toRadians, 1f)
+            val rotation = ModelEvent.Update((-10f).toRadians, 1f)
             renderers.lastOrNull()?.modelEvents?.tryEmit(rotation)
         }
 
         findViewById<Button>(R.id.rotatePlusButton).setOnClickListener {
-            val rotation = ModelRenderer.ModelEvent.Update((10f).toRadians, 1f)
+            val rotation = ModelEvent.Update((10f).toRadians, 1f)
             renderers.lastOrNull()?.modelEvents?.tryEmit(rotation)
         }
 
         findViewById<Button>(R.id.scalePlusButton).setOnClickListener {
-            val scaleUpdate = ModelRenderer.ModelEvent.Update(0f, 1.1f)
+            val scaleUpdate = ModelEvent.Update(0f, 1.1f)
             renderers.lastOrNull()?.modelEvents?.tryEmit(scaleUpdate)
         }
 
         findViewById<Button>(R.id.scaleMinusButton).setOnClickListener {
-            val scaleUpdate = ModelRenderer.ModelEvent.Update(0f, 0.9f)
+            val scaleUpdate = ModelEvent.Update(0f, 0.9f)
             renderers.lastOrNull()?.modelEvents?.tryEmit(scaleUpdate)
         }
+
     }
 
 }

@@ -11,20 +11,18 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.mapNotNull
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 
 class ModelRenderer(
-    context: Context,
+    private val context: Context,
     private val arCore: ArCore,
     private val filament: Filament,
-    initialPos: ModelEvent.Move
+    initialPos: ModelEvent.Move,
+    private val initialModel: ModelResource
 ) {
-    sealed class ModelEvent {
-        data class Move(val x: Float, val y: Float) : ModelEvent()
-        data class Update(val rotate: Float, val scale: Float) : ModelEvent()
-    }
 
     val modelEvents: MutableSharedFlow<ModelEvent> =
         MutableSharedFlow(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -39,7 +37,28 @@ class ModelRenderer(
     private val coroutineScope: CoroutineScope =
         CoroutineScope(Dispatchers.Main)
 
-    private lateinit var filamentAsset: FilamentAsset
+    private var filamentAsset: FilamentAsset? = null
+
+    fun renderModel(resource: ModelResource) {
+        destroyAssets()
+        coroutineScope.launch {
+            filamentAsset = load3DModel(resource)
+        }
+    }
+
+    @Suppress("BlockingMethodInNonBlockingContext")
+    private suspend fun load3DModel(resource: ModelResource) = withContext(Dispatchers.IO) {
+        context.assets
+            .open(resource.res)
+            .use { input ->
+                val bytes = ByteArray(input.available())
+                input.read(bytes)
+                val byteBuffer = ByteBuffer.wrap(bytes)
+                filament.assetLoader.createAssetFromBinary(byteBuffer)!!
+            }
+    }.also {
+        filament.resourceLoader.loadResources(it)
+    }
 
     init {
         arCore.frame
@@ -53,22 +72,10 @@ class ModelRenderer(
             }
 
         coroutineScope.launch {
-            filamentAsset =
-                withContext(Dispatchers.IO) {
-                    @Suppress("BlockingMethodInNonBlockingContext")
-                    context.assets
-                        .open("human.glb")
-                        .use { input ->
-                            val bytes = ByteArray(input.available())
-                            input.read(bytes)
-                            filament.assetLoader.createAssetFromBinary(ByteBuffer.wrap(bytes))!!
-                        }
-                }.also {
-                    filament.resourceLoader.loadResources(it)
-                }
+
+            filamentAsset = load3DModel(initialModel)
 
             launch {
-                // translation
                 modelEvents
                     .mapNotNull { modelEvent ->
                         (modelEvent as? ModelEvent.Move)
@@ -81,32 +88,34 @@ class ModelRenderer(
                                     .maxByOrNull { it.trackable is Point }
                             }
                             ?.let { V3(it.hitPose.translation) }
-                    }
-                    .collect {
+                    }.collect {
                         translation = it
                     }
             }
 
             launch {
-                // rotation and scale
                 modelEvents.collect { modelEvent ->
                     when (modelEvent) {
                         is ModelEvent.Update ->
-                            Pair((rotate + modelEvent.rotate).clampToTau, scale * modelEvent.scale)
+                            Pair(
+                                (rotate + modelEvent.rotate).clampToTau,
+                                scale * modelEvent.scale
+                            )
                         else ->
                             Pair(rotate, scale)
+                    }.let { (r, s) ->
+                        rotate = r
+                        scale = s
                     }
-                        .let { (r, s) ->
-                            rotate = r
-                            scale = s
-                        }
                 }
             }
 
             launch {
-                doFrameEvents.collect { frame ->
+                doFrameEvents.filter {
+                    filamentAsset != null
+                }.collect { frame ->
                     // update animator
-                    val animator = filamentAsset.animator
+                    val animator = filamentAsset!!.animator
 
                     if (animator.animationCount > 0) {
                         animator.applyAnimation(
@@ -120,10 +129,10 @@ class ModelRenderer(
                         animator.updateBoneMatrices()
                     }
 
-                    filament.scene.addEntities(filamentAsset.entities)
+                    filament.scene.addEntities(filamentAsset!!.entities)
 
                     filament.engine.transformManager.setTransform(
-                        filament.engine.transformManager.getInstance(filamentAsset.root),
+                        filament.engine.transformManager.getInstance(filamentAsset!!.root),
                         m4Identity()
                             .translate(translation.x, translation.y, translation.z)
                             .rotate(rotate.toDegrees, 0f, 1f, 0f)
@@ -136,9 +145,16 @@ class ModelRenderer(
     }
 
     fun destroy() {
-        filament.scene.removeEntities(filamentAsset.entities)
-        filament.assetLoader.destroyAsset(filamentAsset)
+        destroyAssets()
         coroutineScope.cancel()
+    }
+
+    private fun destroyAssets() {
+        if (filamentAsset != null) {
+            filament.scene.removeEntities(filamentAsset!!.entities)
+            filament.assetLoader.destroyAsset(filamentAsset!!)
+            filamentAsset = null
+        }
     }
 
 }
