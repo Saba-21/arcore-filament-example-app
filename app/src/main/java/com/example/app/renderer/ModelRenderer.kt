@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.app.*
 import com.example.app.arcore.ArCore
 import com.example.app.filament.Filament
+import com.google.android.filament.gltfio.FilamentAsset
 import com.google.ar.core.Frame
 import com.google.ar.core.Point
 import kotlinx.coroutines.*
@@ -38,6 +39,8 @@ class ModelRenderer(
     private val coroutineScope: CoroutineScope =
         CoroutineScope(Dispatchers.Main)
 
+    private lateinit var filamentAsset: FilamentAsset
+
     init {
         arCore.frame
             .hitTest(initialPos.x, initialPos.y)
@@ -50,7 +53,7 @@ class ModelRenderer(
             }
 
         coroutineScope.launch {
-            val filamentAsset =
+            filamentAsset =
                 withContext(Dispatchers.IO) {
                     @Suppress("BlockingMethodInNonBlockingContext")
                     context.assets
@@ -60,8 +63,9 @@ class ModelRenderer(
                             input.read(bytes)
                             filament.assetLoader.createAssetFromBinary(ByteBuffer.wrap(bytes))!!
                         }
+                }.also {
+                    filament.resourceLoader.loadResources(it)
                 }
-                    .also { filament.resourceLoader.loadResources(it) }
 
             launch {
                 // translation
@@ -132,6 +136,8 @@ class ModelRenderer(
     }
 
     fun destroy() {
+        filament.scene.removeEntities(filamentAsset.entities)
+        filament.assetLoader.destroyAsset(filamentAsset)
         coroutineScope.cancel()
     }
 
