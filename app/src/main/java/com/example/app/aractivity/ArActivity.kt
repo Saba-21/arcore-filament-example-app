@@ -189,22 +189,22 @@ class ArActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.topMove).setOnClickListener {
-            val move = ModelEvent.Move(x = 0f, y = 10f)
+            val move = ModelEvent.Move(x = 0f, y = -getTranslateDistance())
             renderers.lastOrNull()?.modelEvents?.tryEmit(move)
         }
 
         findViewById<Button>(R.id.bottomMove).setOnClickListener {
-            val move = ModelEvent.Move(x = 0f, y = -10f)
+            val move = ModelEvent.Move(x = 0f, y = getTranslateDistance())
             renderers.lastOrNull()?.modelEvents?.tryEmit(move)
         }
 
         findViewById<Button>(R.id.rightMove).setOnClickListener {
-            val move = ModelEvent.Move(x = 0f, y = 0f)
+            val move = ModelEvent.Move(x = getTranslateDistance(), y = 0f)
             renderers.lastOrNull()?.modelEvents?.tryEmit(move)
         }
 
         findViewById<Button>(R.id.leftMove).setOnClickListener {
-            val move = ModelEvent.Move(x = 0f, y = 0f)
+            val move = ModelEvent.Move(x = -getTranslateDistance(), y = 0f)
             renderers.lastOrNull()?.modelEvents?.tryEmit(move)
         }
 

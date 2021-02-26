@@ -3,6 +3,7 @@ package com.example.app
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
+import android.util.TypedValue
 import androidx.core.content.ContextCompat
 
 data class PermissionResultEvent(val requestCode: Int, val grantResults: IntArray) {
@@ -32,3 +33,7 @@ fun Activity.hasPermission(): Boolean = ContextCompat.checkSelfPermission(
 
 fun Activity.requestPermission() =
     run { requestPermissions(arrayOf(Manifest.permission.CAMERA), 1) }
+
+fun Activity.getTranslateDistance(): Float {
+    return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 20f, resources.displayMetrics)
+}

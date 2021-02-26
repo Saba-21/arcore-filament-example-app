@@ -30,6 +30,9 @@ class ModelRenderer(
     private var rotate: Float = 0f
     private var scale: Float = 1f
 
+    private var lastX = initialPos.x
+    private var lastY = initialPos.y
+
     private val coroutineScope: CoroutineScope =
         CoroutineScope(Dispatchers.Main)
 
@@ -75,12 +78,13 @@ class ModelRenderer(
                 modelEvents.mapNotNull { modelEvent ->
                     (modelEvent as? ModelEvent.Move)
                         ?.let {
+                            lastX += modelEvent.x
+                            lastY += modelEvent.y
                             arCore.frame
-                                .hitTest(
-                                    filament.surfaceView.width.toFloat() * modelEvent.x,
-                                    filament.surfaceView.height.toFloat() * modelEvent.y,
-                                )
-                                .maxByOrNull { it.trackable is Point }
+                                .hitTest(lastX, lastY)
+                                .maxByOrNull {
+                                    it.trackable is Point
+                                }
                         }?.let {
                             V3(it.hitPose.translation)
                         }
